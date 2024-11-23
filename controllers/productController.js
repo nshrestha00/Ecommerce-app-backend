@@ -1,6 +1,4 @@
 //fucntion for add product
-
-
 const addProduct= async(req,res)=>{
     try {
         const {name,description,price,category,subCategory,sizes,bestseller}= req.body
