@@ -19,14 +19,14 @@ const addProduct= async(req,res)=>{
                 return result.secure_url
             })
         )
-
+        console.log("Type of bestseller: ", typeof bestseller)
       const productData={
         name,
         description,
         category,
         price:Number(price),
         subCategory,
-        bestseller:bestseller === 'on' ? true : false,
+        bestseller:Boolean(bestseller),
         sizes:JSON.parse(sizes),
         image:imagesUrl,
         date:Date.now()
