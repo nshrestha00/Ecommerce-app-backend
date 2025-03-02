@@ -7,6 +7,8 @@ const addProduct= async(req,res)=>{
     try {
         const {name,description,price,category,subCategory,sizes,bestseller}= req.body
 
+        console.log("add request body: ", req.body)
+
         const image1= req.files.image1 && req.files.image1[0]
         const image2= req.files.image2 && req.files.image2[0]
         const image3= req.files.image3 && req.files.image3[0]
@@ -81,54 +83,77 @@ const singleProduct= async(req,res)=>{
 
 // function for updating a product
 const updateProduct = async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const { name, description, price, category, subCategory, sizes, bestseller } = req.body;
-  
-      // Handle images (if new ones are uploaded)
-      const image1 = req.files?.image1 && req.files.image1[0];
-      const image2 = req.files?.image2 && req.files.image2[0];
-      const image3 = req.files?.image3 && req.files.image3[0];
-      const image4 = req.files?.image4 && req.files.image4[0];
-  
-      const images = [image1, image2, image3, image4].filter(item => item !== undefined);
-  
-      // Upload new images to Cloudinary (if any)
-      let imagesUrl = [];
-      if (images.length > 0) {
-        imagesUrl = await Promise.all(
-          images.map(async (item) => {
-            let result = await cloudinary.uploader.upload(item.path, { resource_type: "image" });
-            return result.secure_url;
-          })
-        );
-      }
-  
-      // Prepare updated product data
-      const updatedProductData = {
-        name,
-        description,
-        price: Number(price),
-        category,
-        subCategory,
-        bestseller: Boolean(bestseller),
-        sizes: JSON.parse(sizes),
-        image: imagesUrl.length > 0 ? imagesUrl : undefined, // Only update images if new ones are provided
-      };
-  
-      // Update the product in the database
-      const updatedProduct = await productModel.findByIdAndUpdate(productId, updatedProductData, { new: true });
-  
-      if (!updatedProduct) {
-        return res.status(404).json({ success: false, message: "Product not found" });
-      }
-  
-      res.json({ success: true, message: "Product updated successfully!", product: updatedProduct });
-    } catch (error) {
-      console.log(error);
-      res.json({ success: false, message: error.message });
+  try {
+    const { productId } = req.params;
+    const { name, description, price, category, subCategory, sizes, bestseller } = req.body;
+
+    console.log('update value of req body: ', req.body)
+
+    // First get the existing product to handle images properly
+    const existingProduct = await productModel.findById(productId);
+
+    console.log("existing product: ", existingProduct)
+    
+    if (!existingProduct) {
+      return res.status(404).json({ success: false, message: "Product not found" });
     }
-  };
+
+    // Handle images (if new ones are uploaded)
+    const image1 = req.files?.image1 && req.files.image1[0];
+    const image2 = req.files?.image2 && req.files.image2[0];
+    const image3 = req.files?.image3 && req.files.image3[0];
+    const image4 = req.files?.image4 && req.files.image4[0];
+
+    const images = [image1, image2, image3, image4].filter(item => item !== undefined);
+
+    console.log('value of images: ', images)
+
+    // Upload new images to Cloudinary (if any)
+    let imagesUrl = existingProduct.image; // Start with existing images
+    if (images.length > 0) {
+      const newImagesUrl = await Promise.all(
+        images.map(async (item) => {
+          let result = await cloudinary.uploader.upload(item.path, { resource_type: "image" });
+          return result.secure_url;
+        })
+      );
+      imagesUrl = newImagesUrl; // Replace with new images
+    }
+
+    console.log("above updated product data: ")
+    console.log("value of sizes: ", (sizes))
+
+    // Prepare updated product data
+    const updatedProductData = {
+      name,
+      description,
+      price: Number(price),
+      category,
+      subCategory,
+      bestseller: Boolean(bestseller) ?? false,
+      sizes: JSON.parse(sizes),
+    };
+
+    console.log('updated product data: ', updatedProductData)
+    
+    // Only update images field if new images were uploaded
+    if (images.length > 0) {
+      updatedProductData.image = imagesUrl;
+    }
+
+    // Update the product in the database
+    const updatedProduct = await productModel.findByIdAndUpdate(
+      productId, 
+      updatedProductData, 
+      { new: true }
+    );
+
+    res.json({ success: true, message: "Product updated successfully!", product: updatedProduct });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
   
 export {addProduct,listProducts,removeProduct,singleProduct,updateProduct}
 
